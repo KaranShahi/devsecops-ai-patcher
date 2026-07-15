@@ -1,0 +1,29 @@
+[
+  {
+    "rule_id": "hardcoded-secret",
+    "cwe": "CWE-798",
+    "severity": "critical",
+    "description": "Hardcoded credential or API key found in source.",
+    "file": "vulnerable_app\\server.js",
+    "line": 11,
+    "snippet": "const STRIPE_API_KEY = \"REPLACE_ME_WITH_A_REAL_SECRET_VALUE_0000\";"
+  },
+  {
+    "rule_id": "sql-injection",
+    "cwe": "CWE-89",
+    "severity": "critical",
+    "description": "SQL query built via string concatenation with untrusted input.",
+    "file": "vulnerable_app\\server.js",
+    "line": 23,
+    "snippet": "const query = \"SELECT * FROM users WHERE id = \" + userId;"
+  },
+  {
+    "rule_id": "command-injection",
+    "cwe": "CWE-78",
+    "severity": "high",
+    "description": "Shell command built via string concatenation with untrusted input.",
+    "file": "vulnerable_app\\server.js",
+    "line": 33,
+    "snippet": "exec(\"ping \" + host, (err, stdout) => {"
+  }
+]
