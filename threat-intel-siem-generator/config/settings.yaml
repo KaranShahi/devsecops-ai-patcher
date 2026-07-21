@@ -1,0 +1,44 @@
+# =============================================================================
+# AI-Driven Threat Intel & SIEM Detection Rule Generator — configuration
+# Non-secret settings live here. Secrets (API keys) go in a local .env file
+# (see .env.example) and are never committed.
+# =============================================================================
+
+ingestion:
+  # Public CISA Known Exploited Vulnerabilities catalog (no API key required).
+  cisa_kev_url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+  # Local snapshot written after every successful live fetch, used as an
+  # offline fallback if the feed is unreachable.
+  cache_path: "data/kev_cache.json"
+  # Bundled sample of well-known real CVEs (Log4Shell, EternalBlue,
+  # PrintNightmare) used when running with --mock, so the whole pipeline
+  # works with zero network access for demos/grading.
+  mock_data_path: "data/mock_kev_sample.json"
+  # Default number of most-recently-added KEV entries to process per run.
+  default_limit: 5
+  request_timeout_seconds: 10
+  retry_attempts: 3
+  retry_backoff_seconds: 2
+
+enrichment:
+  # NVD 2.0 REST API. Works without a key at a low rate limit; set
+  # NVD_API_KEY in .env to raise the rate limit.
+  nvd_api_url: "https://services.nvd.nist.gov/rest/json/cves/2.0"
+  nvd_api_key_env: "NVD_API_KEY"
+  request_timeout_seconds: 10
+  retry_attempts: 3
+  retry_backoff_seconds: 2
+  # Pause between sequential NVD lookups to stay under the public rate limit.
+  polite_delay_seconds: 1.5
+
+engine:
+  rules_output_dir: "rules"
+  dashboard_path: "DASHBOARD.md"
+  # LLM-assisted rule refinement is optional and off by default. The engine
+  # always produces valid rules from deterministic templates first; the LLM
+  # pass (if enabled and reachable) only refines/tightens them.
+  use_llm_env: "USE_LLM"
+  anthropic_api_key_env: "ANTHROPIC_API_KEY"
+  anthropic_model_env: "ANTHROPIC_MODEL"
+  default_anthropic_model: "claude-sonnet-5"
+  llm_max_tokens: 2000
