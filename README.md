@@ -1,6 +1,7 @@
 # DevSecOps Automated Static Analysis & Patching Engine
 
 ![CI](https://github.com/KaranShahi/devsecops-ai-patcher/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 A tool that scans a codebase for common vulnerability patterns, then
 applies deterministic, rule-based patches directly to the source files —
@@ -149,3 +150,7 @@ CI runs this suite on every push and pull request.
   `.query()` call) by nearby-line proximity, not by parsing scope. In
   unusually structured code they fall back to flagging the finding for
   manual review rather than silently emitting a wrong fix.
+
+## License
+
+[MIT](LICENSE)
