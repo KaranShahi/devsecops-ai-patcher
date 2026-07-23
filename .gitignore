@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .env
 pr_output.md
+.playwright-mcp/
