@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 .env
 pr_output.md
+scan_results.json
+node_modules/
 .playwright-mcp/

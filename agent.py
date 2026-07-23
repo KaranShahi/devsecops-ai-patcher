@@ -42,12 +42,14 @@ SECRET_PATTERN = re.compile(
     r"""(?:sk_live_|AKIA|[A-Za-z0-9_\-]{16,})(?P=quote)(?P<trail>;?)"""
 )
 SQL_PATTERN = re.compile(
+    r"""(?:(?:const|let|var)\s+(?P<target>\w+)\s*=\s*)?"""
     r"""(?P<quote>["'`])(?P<body>(?:SELECT|INSERT|UPDATE|DELETE)[^"'`]*)(?P=quote)\s*\+\s*(?P<var>\w+)""",
     re.IGNORECASE,
 )
 CMD_PATTERN = re.compile(
     r"""exec\(\s*(?P<quote>["'`])(?P<body>[^"'`]*)(?P=quote)\s*\+\s*(?P<var>\w+)"""
 )
+CHILD_PROCESS_IMPORT_PATTERN = re.compile(r"""require\(\s*["']child_process["']\s*\)""")
 
 
 def _to_env_name(identifier: str) -> str:
@@ -56,7 +58,45 @@ def _to_env_name(identifier: str) -> str:
     return snake.upper().strip("_")
 
 
-def patch_hardcoded_secret(line: str, file_ext: str) -> tuple[str, str] | None:
+def _find_query_call(file_lines: list[str], start_idx: int, target: str) -> int | None:
+    """Find the nearby `.query(target, ...)` call site that needs the bound
+    parameter array, so the `?` placeholder isn't left with nothing to bind."""
+    pattern = re.compile(r"""\.query\(\s*""" + re.escape(target) + r"""\s*,""")
+    for i in range(start_idx, min(start_idx + 20, len(file_lines))):
+        if pattern.search(file_lines[i]):
+            return i
+    return None
+
+
+def _inject_bind_params(line: str, target: str, var: str) -> str:
+    pattern = re.compile(r"""(\.query\(\s*""" + re.escape(target) + r"""\s*,\s*)""")
+    return pattern.sub(lambda m: m.group(1) + f"[{var}], ", line, count=1)
+
+
+def _ensure_execfile_import(file_lines: list[str]):
+    """Add `execFile` to an existing destructured `child_process` import.
+
+    Returns "already-present" if execFile is already imported, (line_index,
+    new_line) if an import was found and patched, or None if no destructured
+    import was found (nothing safe to rewrite automatically).
+    """
+    for i, line in enumerate(file_lines):
+        if not CHILD_PROCESS_IMPORT_PATTERN.search(line):
+            continue
+        if re.search(r"\bexecFile\b", line):
+            return "already-present"
+        braces = re.search(r"\{([^}]*)\}", line)
+        if not braces:
+            return None
+        names = [n.strip() for n in braces.group(1).split(",") if n.strip()]
+        names.append("execFile")
+        new_line = re.sub(r"\{[^}]*\}", "{ " + ", ".join(names) + " }", line, count=1)
+        return i, new_line
+    return None
+
+
+def patch_hardcoded_secret(file_lines: list[str], idx: int, file_ext: str):
+    line = file_lines[idx]
     match = SECRET_PATTERN.search(line)
     if not match:
         return None
@@ -65,21 +105,42 @@ def patch_hardcoded_secret(line: str, file_ext: str) -> tuple[str, str] | None:
     replacement = f'{match.group("name")} = {template.format(name=env_name)}{match.group("trail")}'
     fixed = line[: match.start()] + replacement + line[match.end() :]
     note = f"Move the secret to an environment variable named {env_name}."
-    return fixed, note
+    return {idx: fixed}, note
 
 
-def patch_sql_injection(line: str, file_ext: str) -> tuple[str, str] | None:
+def patch_sql_injection(file_lines: list[str], idx: int, file_ext: str):
+    line = file_lines[idx]
     match = SQL_PATTERN.search(line)
     if not match:
         return None
     quote = match.group("quote")
     parameterized = f'{quote}{match.group("body")}?{quote}'
     fixed = line[: match.start()] + parameterized + line[match.end() :]
-    note = f"Pass `{match.group('var')}` as a bound query parameter instead of concatenating it into the SQL string."
-    return fixed, note
+    changes = {idx: fixed}
+
+    var = match.group("var")
+    target = match.group("target")
+    note = f"Pass `{var}` as a bound query parameter instead of concatenating it into the SQL string."
+
+    if target:
+        call_idx = _find_query_call(file_lines, idx, target)
+        if call_idx is not None:
+            changes[call_idx] = _inject_bind_params(file_lines[call_idx], target, var)
+            note += f" Added `[{var}]` as the bound parameter array to the `.query()` call."
+        else:
+            note += (
+                f" Could not find the matching `.query({target}, ...)` call "
+                f"automatically — pass `[{var}]` as its second argument by hand."
+            )
+
+    return changes, note
 
 
-def patch_command_injection(line: str, file_ext: str) -> tuple[str, str] | None:
+def patch_command_injection(file_lines: list[str], idx: int, file_ext: str):
+    if file_ext not in (".js", ".ts"):
+        return None  # execFile is a Node API; leave other languages for manual review.
+
+    line = file_lines[idx]
     match = CMD_PATTERN.search(line)
     if not match:
         return None
@@ -90,8 +151,18 @@ def patch_command_injection(line: str, file_ext: str) -> tuple[str, str] | None:
     var = match.group("var")
     args = ", ".join([f'"{a}"' for a in static_args] + [var])
     fixed = line[: match.start()] + f'execFile("{cmd}", [{args}]' + line[match.end() :]
+    changes = {idx: fixed}
     note = f"Use execFile with an argument array instead of a shell string, and validate `{var}` before use."
-    return fixed, note
+
+    import_result = _ensure_execfile_import(file_lines)
+    if isinstance(import_result, tuple):
+        import_idx, new_import_line = import_result
+        changes[import_idx] = new_import_line
+        note += " Added `execFile` to the existing `child_process` import."
+    elif import_result is None:
+        note += " Ensure `execFile` is imported from `child_process` in this file."
+
+    return changes, note
 
 
 PATCHERS = {
@@ -110,10 +181,12 @@ def patch_file(file_path: str, findings: list[dict]) -> list[dict]:
     for finding in findings:
         patcher = PATCHERS.get(finding["rule_id"])
         idx = finding["line"] - 1
-        original_line = file_lines[idx] if 0 <= idx < len(file_lines) else None
-        result = patcher(original_line, file_ext) if patcher and original_line is not None else None
+        in_range = 0 <= idx < len(file_lines)
+        result = patcher(file_lines, idx, file_ext) if patcher and in_range else None
         if result:
-            file_lines[idx], note = result
+            changes, note = result
+            for line_idx, new_line in changes.items():
+                file_lines[line_idx] = new_line
             results.append({**finding, "applied": True, "fixed_snippet": file_lines[idx].strip(), "remediation_note": note})
         else:
             results.append({**finding, "applied": False, "fixed_snippet": None, "remediation_note": None})
