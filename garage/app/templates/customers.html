@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Customers - Garage Manager{% endblock %}
+{% block content %}
+<h1>Customers</h1>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Add customer</h2>
+  <form method="post" action="/customers" class="form-grid">
+    <div><label>Name</label><input name="name" required></div>
+    <div><label>Email</label><input name="email" type="email"></div>
+    <div><label>Phone</label><input name="phone"></div>
+    <div><label>Postcode</label><input name="postcode"></div>
+    <div><label>Address line 1</label><input name="address_line1"></div>
+    <div><label>Address line 2</label><input name="address_line2"></div>
+    <div><label>City</label><input name="city"></div>
+    <div style="align-self:end;"><button type="submit">Add customer</button></div>
+  </form>
+</div>
+
+<div class="panel">
+  {% if customers %}
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Vehicles</th><th>Jobs</th></tr></thead>
+    <tbody>
+      {% for c in customers %}
+      <tr onclick="window.location='/customers/{{ c.id }}'" style="cursor:pointer;">
+        <td>{{ c.name }}</td>
+        <td>{{ c.email or "-" }}</td>
+        <td>{{ c.phone or "-" }}</td>
+        <td>{{ c.vehicles|length }}</td>
+        <td>{{ c.jobs|length }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No customers yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

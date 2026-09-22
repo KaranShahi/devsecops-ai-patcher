@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}New Job - Garage Manager{% endblock %}
+{% block content %}
+<h1>Raise a new job</h1>
+
+<div class="panel" style="max-width:520px;">
+  {% if not customers %}
+  <p class="empty">Add a <a href="/customers">customer</a> first.</p>
+  {% else %}
+  <form method="post" action="/jobs">
+    <label>Customer</label>
+    <select name="customer_id" id="customer-select" required>
+      {% for c in customers %}
+      <option value="{{ c.id }}">{{ c.name }}</option>
+      {% endfor %}
+    </select>
+
+    <label style="margin-top:12px;">Vehicle</label>
+    <select name="vehicle_id" id="vehicle-select" required></select>
+
+    <label style="margin-top:12px;">Job title</label>
+    <input name="title" placeholder="e.g. Front brake pads + MOT" required>
+
+    <label style="margin-top:12px;">Description</label>
+    <textarea name="description"></textarea>
+
+    <div class="actions"><button type="submit">Create job</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<script>
+async function loadVehicles() {
+  const customerId = document.getElementById('customer-select').value;
+  const select = document.getElementById('vehicle-select');
+  select.innerHTML = '<option>Loading...</option>';
+  const res = await fetch(`/jobs/vehicles-for-customer/${customerId}`);
+  const vehicles = await res.json();
+  select.innerHTML = '';
+  if (vehicles.length === 0) {
+    select.innerHTML = '<option value="">No vehicles - add one on the customer page</option>';
+    return;
+  }
+  for (const v of vehicles) {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.label;
+    select.appendChild(opt);
+  }
+}
+document.getElementById('customer-select')?.addEventListener('change', loadVehicles);
+if (document.getElementById('customer-select')) loadVehicles();
+</script>
+{% endblock %}

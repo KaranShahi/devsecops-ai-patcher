@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} - Garage Manager{% endblock %}
+{% block content %}
+<h1>{{ job.title }} <span class="badge {{ job.status.value }}">{{ job.status.value }}</span></h1>
+<p class="muted">
+  {{ job.customer.name }} &middot;
+  {{ job.vehicle.registration if job.vehicle else "no vehicle" }}
+  {% if job.vehicle %}({{ job.vehicle.make or "" }} {{ job.vehicle.model or "" }}){% endif %}
+</p>
+{% if job.description %}<p>{{ job.description }}</p>{% endif %}
+
+{% set labor_total = job.labor_lines|sum(attribute="line_total") %}
+{% set parts_total = job.part_lines|sum(attribute="line_total") %}
+
+<div class="panel">
+  <h2 style="margin-top:0;">Labour</h2>
+  {% if job.labor_lines %}
+  <table>
+    <thead><tr><th>Description</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Total</th></tr></thead>
+    <tbody>
+      {% for l in job.labor_lines %}
+      <tr><td>{{ l.description }}</td><td class="num">{{ l.hours }}</td><td class="num">£{{ "%.2f"|format(l.rate) }}</td><td class="num">£{{ "%.2f"|format(l.line_total) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No labour logged yet.</p>
+  {% endif %}
+
+  {% if job.status.value != "invoiced" %}
+  <form method="post" action="/jobs/{{ job.id }}/labor" class="form-grid" style="margin-top:14px;">
+    <div><label>Description</label><input name="description" required placeholder="e.g. Remove & replace front pads"></div>
+    <div><label>Hours</label><input name="hours" type="number" step="0.25" min="0" required></div>
+    <div><label>Rate (£/hr)</label><input name="rate" type="number" step="0.01" min="0" value="{{ default_labor_rate }}" required></div>
+    <div style="align-self:end;"><button type="submit">Add labour</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Parts</h2>
+  {% if job.part_lines %}
+  <table>
+    <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Markup</th><th class="num">Sell</th><th class="num">Total</th></tr></thead>
+    <tbody>
+      {% for p in job.part_lines %}
+      <tr>
+        <td>{{ p.description }}{% if p.part_number %} <span class="muted">({{ p.part_number }})</span>{% endif %}</td>
+        <td class="num">{{ p.quantity }}</td>
+        <td class="num">£{{ "%.2f"|format(p.cost_price) }}</td>
+        <td class="num">{{ p.markup_pct }}%</td>
+        <td class="num">£{{ "%.2f"|format(p.sell_price) }}</td>
+        <td class="num">£{{ "%.2f"|format(p.line_total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No parts allocated yet.</p>
+  {% endif %}
+
+  {% if job.status.value != "invoiced" %}
+  {% if unallocated_lines %}
+  <h3>Allocate from an imported supplier invoice</h3>
+  <table>
+    <thead><tr><th>Part</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th></th></tr></thead>
+    <tbody>
+      {% for line in unallocated_lines %}
+      <tr>
+        <td>{{ line.part_number or "-" }}</td>
+        <td>{{ line.description }} <span class="muted">({{ line.supplier_invoice.supplier.name }} inv {{ line.supplier_invoice.invoice_number or line.supplier_invoice.id }})</span></td>
+        <td class="num">{{ line.quantity }}</td>
+        <td class="num">£{{ "%.2f"|format(line.unit_price) }}</td>
+        <td>
+          <form method="post" action="/jobs/{{ job.id }}/allocate/{{ line.id }}" style="display:flex; gap:6px; align-items:center;">
+            <input name="markup_pct" type="number" step="1" value="{{ default_markup_pct }}" style="width:70px;" required>
+            <input name="vat_rate" type="number" step="0.01" value="{{ default_vat_rate }}" style="width:70px;" required>
+            <button type="submit" class="secondary">Allocate</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h3>Add a part manually</h3>
+  <form method="post" action="/jobs/{{ job.id }}/parts" class="form-grid">
+    <div><label>Description</label><input name="description" required></div>
+    <div><label>Part number</label><input name="part_number"></div>
+    <div><label>Quantity</label><input name="quantity" type="number" step="0.01" value="1" required></div>
+    <div><label>Cost price (ex VAT)</label><input name="cost_price" type="number" step="0.01" value="0" required></div>
+    <div><label>Markup %</label><input name="markup_pct" type="number" step="1" value="{{ default_markup_pct }}" required></div>
+    <div><label>VAT rate</label><input name="vat_rate" type="number" step="0.01" value="{{ default_vat_rate }}" required></div>
+    <div style="align-self:end;"><button type="submit">Add part</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <div class="totals-box">
+    <div class="row"><span>Labour</span><span>£{{ "%.2f"|format(labor_total) }}</span></div>
+    <div class="row"><span>Parts (sell)</span><span>£{{ "%.2f"|format(parts_total) }}</span></div>
+    <div class="row total"><span>Total ex VAT</span><span>£{{ "%.2f"|format(labor_total + parts_total) }}</span></div>
+  </div>
+  {% if job.status.value != "invoiced" %}
+  <form method="post" action="/jobs/{{ job.id }}/generate-invoice" class="actions">
+    <button type="submit" {% if not job.labor_lines and not job.part_lines %}disabled{% endif %}>Generate customer invoice</button>
+  </form>
+  {% else %}
+  <div class="actions">
+    {% for inv in job.invoices %}
+    <a class="btn" href="/customer-invoices/{{ inv.id }}">View invoice {{ inv.invoice_number }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

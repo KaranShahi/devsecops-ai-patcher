@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Garage Manager{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="grid grid-4">
+  <div class="panel stat">
+    <div class="value">{{ open_jobs }}</div>
+    <div class="label">Open / in-progress jobs</div>
+  </div>
+  <div class="panel stat">
+    <div class="value">{{ customers_count }}</div>
+    <div class="label">Customers</div>
+  </div>
+  <div class="panel stat">
+    <div class="value">£{{ "%.2f"|format(unpaid_total) }}</div>
+    <div class="label">Outstanding (draft + sent invoices)</div>
+  </div>
+  <div class="panel stat">
+    <div class="value">{{ needs_review }}</div>
+    <div class="label">Supplier invoices needing review</div>
+  </div>
+</div>
+
+<div class="grid grid-2" style="grid-template-columns: 1fr 1fr;">
+  <div class="panel">
+    <h2 style="margin-top:0;">Recent jobs</h2>
+    {% if recent_jobs %}
+    <table>
+      <thead><tr><th>Job</th><th>Customer</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for job in recent_jobs %}
+        <tr>
+          <td><a href="/jobs/{{ job.id }}">{{ job.title }}</a></td>
+          <td>{{ job.customer.name }}</td>
+          <td><span class="badge {{ job.status.value }}">{{ job.status.value }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No jobs yet. <a href="/jobs/new">Raise the first job</a>.</p>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <h2 style="margin-top:0;">Recent invoices</h2>
+    {% if recent_invoices %}
+    <table>
+      <thead><tr><th>Invoice</th><th>Customer</th><th class="num">Total</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for inv in recent_invoices %}
+        <tr>
+          <td><a href="/customer-invoices/{{ inv.id }}">{{ inv.invoice_number }}</a></td>
+          <td>{{ inv.customer.name }}</td>
+          <td class="num">£{{ "%.2f"|format(inv.total) }}</td>
+          <td><span class="badge {{ inv.status.value }}">{{ inv.status.value }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No invoices raised yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
