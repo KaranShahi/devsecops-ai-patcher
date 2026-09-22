@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Customer Invoices - Garage Manager{% endblock %}
+{% block content %}
+<h1>Customer Invoices</h1>
+
+<div class="panel">
+  {% if invoices %}
+  <table>
+    <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th class="num">Total</th><th>Status</th><th>Xero</th></tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr onclick="window.location='/customer-invoices/{{ inv.id }}'" style="cursor:pointer;">
+        <td>{{ inv.invoice_number }}</td>
+        <td>{{ inv.customer.name }}</td>
+        <td>{{ inv.invoice_date.strftime("%d %b %Y") }}</td>
+        <td class="num">£{{ "%.2f"|format(inv.total) }}</td>
+        <td><span class="badge {{ inv.status.value }}">{{ inv.status.value }}</span></td>
+        <td>{% if inv.xero_invoice_id %}<span class="badge paid">synced</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No invoices raised yet. Generate one from a completed job.</p>
+  {% endif %}
+</div>
+{% endblock %}

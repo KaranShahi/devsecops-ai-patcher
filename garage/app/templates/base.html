@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Garage Manager{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">🔧 Garage Manager</a>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/customers">Customers</a>
+      <a href="/jobs">Jobs</a>
+      <a href="/supplier-invoices">Supplier Invoices</a>
+      <a href="/customer-invoices">Customer Invoices</a>
+      <a href="/xero/status">Xero</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

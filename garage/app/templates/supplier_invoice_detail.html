@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Supplier invoice - Garage Manager{% endblock %}
+{% block content %}
+<h1>{{ invoice.supplier.name }} &mdash; {{ invoice.invoice_number or ("Invoice #" ~ invoice.id) }}</h1>
+
+{% if invoice.needs_review %}
+<div class="alert warn">
+  <strong>Needs review:</strong> {{ invoice.parser_notes or "The parser could not confidently extract this invoice." }}
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="grid grid-3">
+    <div><label>Date</label><div>{{ invoice.invoice_date.strftime("%d %b %Y") if invoice.invoice_date else "-" }}</div></div>
+    <div><label>Source file</label><div>{{ invoice.source_filename or "-" }}</div></div>
+    <div><label>Imported</label><div>{{ invoice.imported_at.strftime("%d %b %Y %H:%M") }}</div></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Line items</h2>
+  {% if invoice.lines %}
+  <table>
+    <thead><tr><th>Part</th><th>Description</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">VAT</th><th class="num">Total</th><th>Allocated to</th></tr></thead>
+    <tbody>
+      {% for line in invoice.lines %}
+      <tr>
+        <td>{{ line.part_number or "-" }}</td>
+        <td>{{ line.description }}</td>
+        <td class="num">{{ line.quantity }}</td>
+        <td class="num">£{{ "%.2f"|format(line.unit_price) }}</td>
+        <td class="num">{{ (line.vat_rate * 100)|round(0, 'floor')|int }}%</td>
+        <td class="num">£{{ "%.2f"|format(line.line_total) }}</td>
+        <td>
+          {% if line.allocated_job_id %}
+          <a href="/jobs/{{ line.allocated_job_id }}">Job #{{ line.allocated_job_id }}</a>
+          {% else %}
+          <span class="muted">unallocated - allocate from a job's page</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No line items were extracted from this file.</p>
+  {% endif %}
+
+  <div class="totals-box" style="margin-top:14px;">
+    <div class="row"><span>Subtotal</span><span>£{{ "%.2f"|format(invoice.subtotal) }}</span></div>
+    <div class="row"><span>VAT</span><span>£{{ "%.2f"|format(invoice.vat_amount) }}</span></div>
+    <div class="row total"><span>Total</span><span>£{{ "%.2f"|format(invoice.total) }}</span></div>
+  </div>
+</div>
+
+<details class="panel">
+  <summary style="cursor:pointer;">Raw extracted text (for debugging the parse)</summary>
+  <pre style="white-space:pre-wrap; font-size:12px; margin-top:10px;">{{ invoice.raw_text }}</pre>
+</details>
+{% endblock %}

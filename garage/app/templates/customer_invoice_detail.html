@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ invoice.invoice_number }} - Garage Manager{% endblock %}
+{% block content %}
+<h1>{{ invoice.invoice_number }} <span class="badge {{ invoice.status.value }}">{{ invoice.status.value }}</span></h1>
+<p class="muted">{{ invoice.customer.name }} &middot; {{ invoice.invoice_date.strftime("%d %b %Y") }}</p>
+
+{% if xero_error %}
+<div class="alert danger"><strong>Xero sync failed:</strong> {{ xero_error }}</div>
+{% endif %}
+{% if invoice.xero_invoice_id %}
+<div class="alert ok">Synced to Xero as {{ invoice.xero_invoice_number or invoice.xero_invoice_id }} (status: {{ invoice.xero_status }})</div>
+{% endif %}
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">VAT</th><th class="num">Total</th></tr></thead>
+    <tbody>
+      {% for line in invoice.lines %}
+      <tr>
+        <td>{{ line.description }}</td>
+        <td class="num">{{ line.quantity }}</td>
+        <td class="num">£{{ "%.2f"|format(line.unit_price) }}</td>
+        <td class="num">{{ (line.vat_rate * 100)|round(0, 'floor')|int }}%</td>
+        <td class="num">£{{ "%.2f"|format(line.line_total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals-box" style="margin-top:14px;">
+    <div class="row"><span>Subtotal</span><span>£{{ "%.2f"|format(invoice.subtotal) }}</span></div>
+    <div class="row"><span>VAT</span><span>£{{ "%.2f"|format(invoice.vat_amount) }}</span></div>
+    <div class="row total"><span>Total</span><span>£{{ "%.2f"|format(invoice.total) }}</span></div>
+  </div>
+</div>
+
+<div class="panel actions">
+  <a class="btn" href="/customer-invoices/{{ invoice.id }}/pdf" target="_blank">Download PDF</a>
+
+  {% if invoice.status.value == "draft" %}
+  <form class="inline" method="post" action="/customer-invoices/{{ invoice.id }}/status/sent">
+    <button type="submit" class="secondary">Mark as sent</button>
+  </form>
+  {% endif %}
+  {% if invoice.status.value in ("draft", "sent") %}
+  <form class="inline" method="post" action="/customer-invoices/{{ invoice.id }}/status/paid">
+    <button type="submit" class="secondary">Mark as paid</button>
+  </form>
+  {% endif %}
+
+  {% if xero_connected %}
+  <form class="inline" method="post" action="/customer-invoices/{{ invoice.id }}/sync-to-xero">
+    <button type="submit">{{ "Re-sync to Xero" if invoice.xero_invoice_id else "Push to Xero" }}</button>
+  </form>
+  {% else %}
+  <a class="btn secondary" href="/xero/status">Connect Xero to sync</a>
+  {% endif %}
+</div>
+{% endblock %}

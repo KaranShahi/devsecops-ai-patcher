@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Jobs - Garage Manager{% endblock %}
+{% block content %}
+<h1>Jobs</h1>
+
+<div class="actions" style="margin-bottom:16px;">
+  <a class="btn" href="/jobs/new">Raise a job</a>
+  <a class="btn secondary" href="/jobs">All</a>
+  {% for s in statuses %}
+  <a class="btn secondary" href="/jobs?status={{ s.value }}">{{ s.value }}</a>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  {% if jobs %}
+  <table>
+    <thead><tr><th>Job</th><th>Customer</th><th>Vehicle</th><th>Status</th><th>Created</th></tr></thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr onclick="window.location='/jobs/{{ job.id }}'" style="cursor:pointer;">
+        <td>{{ job.title }}</td>
+        <td>{{ job.customer.name }}</td>
+        <td>{{ job.vehicle.registration if job.vehicle else "-" }}</td>
+        <td><span class="badge {{ job.status.value }}">{{ job.status.value }}</span></td>
+        <td>{{ job.created_at.strftime("%d %b %Y") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No jobs match.</p>
+  {% endif %}
+</div>
+{% endblock %}

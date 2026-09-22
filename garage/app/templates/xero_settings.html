@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Xero - Garage Manager{% endblock %}
+{% block content %}
+<h1>Xero integration</h1>
+
+{% if not configured %}
+<div class="alert warn">
+  No Xero app credentials configured. Create an app at
+  <a href="https://developer.xero.com/app/manage" target="_blank">developer.xero.com/app/manage</a>
+  with scopes <code>openid profile email accounting.contacts accounting.transactions offline_access</code>,
+  then set <code>XERO_CLIENT_ID</code>, <code>XERO_CLIENT_SECRET</code> and <code>XERO_REDIRECT_URI</code>
+  in this app's <code>.env</code> file and restart the server.
+</div>
+{% elif token %}
+<div class="panel">
+  <div class="alert ok">Connected to <strong>{{ token.tenant_name or token.tenant_id }}</strong></div>
+  <p class="muted">Connected {{ token.connected_at.strftime("%d %b %Y %H:%M") }}. Token auto-refreshes as needed.</p>
+  <form method="post" action="/xero/disconnect">
+    <button type="submit" class="danger">Disconnect</button>
+  </form>
+</div>
+{% else %}
+<div class="panel">
+  <p>Not connected yet. Connecting authorises this app to create contacts and invoices in your Xero organisation.</p>
+  <a class="btn" href="/xero/connect">Connect to Xero</a>
+</div>
+{% endif %}
+{% endblock %}

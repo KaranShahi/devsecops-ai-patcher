@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.name }} - Garage Manager{% endblock %}
+{% block content %}
+<h1>{{ customer.name }}</h1>
+<p class="muted">
+  {{ customer.email or "" }} {{ customer.phone or "" }}
+  {% if customer.xero_contact_id %}<span class="badge paid">Synced to Xero</span>{% endif %}
+</p>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Vehicles</h2>
+  {% if customer.vehicles %}
+  <table>
+    <thead><tr><th>Registration</th><th>Make/Model</th><th>Year</th></tr></thead>
+    <tbody>
+      {% for v in customer.vehicles %}
+      <tr><td>{{ v.registration }}</td><td>{{ v.make or "" }} {{ v.model or "" }}</td><td>{{ v.year or "-" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No vehicles yet.</p>
+  {% endif %}
+  <form method="post" action="/vehicles" class="form-grid" style="margin-top:16px;">
+    <input type="hidden" name="customer_id" value="{{ customer.id }}">
+    <div><label>Registration</label><input name="registration" required></div>
+    <div><label>Make</label><input name="make"></div>
+    <div><label>Model</label><input name="model"></div>
+    <div><label>Year</label><input name="year"></div>
+    <div><label>Mileage</label><input name="mileage"></div>
+    <div style="align-self:end;"><button type="submit">Add vehicle</button></div>
+  </form>
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Jobs</h2>
+  {% if customer.jobs %}
+  <table>
+    <thead><tr><th>Job</th><th>Vehicle</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for job in customer.jobs %}
+      <tr>
+        <td><a href="/jobs/{{ job.id }}">{{ job.title }}</a></td>
+        <td>{{ job.vehicle.registration if job.vehicle else "-" }}</td>
+        <td><span class="badge {{ job.status.value }}">{{ job.status.value }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No jobs yet.</p>
+  {% endif %}
+  <div class="actions"><a class="btn" href="/jobs/new">Raise a job</a></div>
+</div>
+{% endblock %}

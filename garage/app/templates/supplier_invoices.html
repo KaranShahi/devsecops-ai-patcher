@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Supplier Invoices - Garage Manager{% endblock %}
+{% block content %}
+<h1>Supplier Invoices</h1>
+
+<div class="panel">
+  <h2 style="margin-top:0;">Import an invoice</h2>
+  <p class="muted">
+    CSV exports from a supplier's trade portal parse most reliably. PDF invoices are
+    parsed on a best-effort basis and flagged for review when the extracted totals
+    don't reconcile with what's printed on the invoice.
+  </p>
+  <form method="post" action="/supplier-invoices/upload" enctype="multipart/form-data" class="form-grid">
+    <div>
+      <label>Supplier</label>
+      <select name="supplier_code" required>
+        {% for s in suppliers %}
+        <option value="{{ s.value }}">{{ s.value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label>File (PDF or CSV)</label><input name="file" type="file" accept=".pdf,.csv" required></div>
+    <div style="align-self:end;"><button type="submit">Upload & parse</button></div>
+  </form>
+</div>
+
+<div class="panel">
+  {% if invoices %}
+  <table>
+    <thead><tr><th>Supplier</th><th>Invoice #</th><th>Date</th><th class="num">Total</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr onclick="window.location='/supplier-invoices/{{ inv.id }}'" style="cursor:pointer;">
+        <td>{{ inv.supplier.name }}</td>
+        <td>{{ inv.invoice_number or "-" }}</td>
+        <td>{{ inv.invoice_date.strftime("%d %b %Y") if inv.invoice_date else "-" }}</td>
+        <td class="num">£{{ "%.2f"|format(inv.total) }}</td>
+        <td>
+          {% if inv.needs_review %}<span class="badge review">needs review</span>{% else %}<span class="badge paid">parsed ok</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No supplier invoices imported yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
