@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/
+results/
+bot.log
+bot_state.json
+STOP
