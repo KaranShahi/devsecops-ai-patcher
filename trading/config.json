@@ -1,0 +1,11 @@
+{
+  "symbol": "XAUUSD",
+  "rr": 2.0,
+  "risk_pct": 0.5,
+  "max_trades_per_day": 2,
+  "max_daily_loss_pct": 2.0,
+  "use_session_filter": true,
+  "session_start_utc": 12,
+  "session_end_utc": 20,
+  "broker_utc_offset_hours": 2
+}
