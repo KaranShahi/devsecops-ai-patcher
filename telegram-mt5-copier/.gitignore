@@ -1,0 +1,5 @@
+config.ini
+*.session
+*.session-journal
+seen_messages.json
+copier.log

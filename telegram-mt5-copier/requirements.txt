@@ -1,0 +1,2 @@
+telethon>=1.36
+MetaTrader5>=5.0.45
