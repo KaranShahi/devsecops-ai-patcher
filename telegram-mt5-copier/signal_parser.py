@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
+MAX_SIGNAL_CHARS = 500
 NUM = r"(\d{3,5}(?:[.,]\d+)?)"
 GOLD_RE = re.compile(r"\b(?:XAU\s*/?\s*USD[A-Z.]*|GOLD)\b")
 DIRECTION_RE = re.compile(r"\b(BUY|SELL|LONG|SHORT)\b(?:\s+(LIMIT|STOP))?")
@@ -36,7 +37,10 @@ def _f(s: str) -> float:
 
 
 def parse_signal(text: str) -> Optional[Signal]:
-    t = re.sub(r"[^\x00-\x7F]+", " ", text.upper())  # drop emoji
+    t = re.sub(r"[\u2013\u2014\u2212]", "-", text.upper())  # en/em dash -> hyphen (zones like 3622–3631)
+    t = re.sub(r"[^\x00-\x7F]+", " ", t)  # drop emoji
+    if len(t) > MAX_SIGNAL_CHARS or "FOR EXAMPLE" in t or "EXAMPLE:" in t:
+        return None  # long announcements / worked examples are not live signals
     t = re.sub(r"(?<=\d),(?=\d{3}\b)", "", t)         # 2,650 -> 2650
     if not GOLD_RE.search(t):
         return None
@@ -79,12 +83,22 @@ def parse_signal(text: str) -> Optional[Signal]:
     return sig if _consistent(sig) else None
 
 
+def is_close_worst_command(text: str) -> bool:
+    """Manager instruction like 'Close your worst entry' (short messages only)."""
+    t = text.upper()
+    return len(t) <= 250 and "CLOSE" in t and "WORST" in t and bool(re.search(r"ENTR(Y|IES)|LAYER|POSITION", t))
+
+
 def _consistent(s: Signal) -> bool:
-    ref = s.entry if s.entry is not None else (s.sl + s.tps[0]) / 2
-    if s.side == "BUY":
-        ok = s.sl < ref and all(tp > ref for tp in s.tps)
+    if s.entry is None:
+        lo = hi = ref = (s.sl + s.tps[0]) / 2
     else:
-        ok = s.sl > ref and all(tp < ref for tp in s.tps)
+        lo, hi = s.entry, (s.entry_high or s.entry)
+        ref = lo
+    if s.side == "BUY":
+        ok = s.sl < lo and all(tp > hi for tp in s.tps)
+    else:
+        ok = s.sl > hi and all(tp < lo for tp in s.tps)
     # gold sanity: stops shouldn't be absurdly far (>150 dollars) from entry
     far = abs(s.sl - ref) > 150 or any(abs(tp - ref) > 400 for tp in s.tps)
     return ok and not far

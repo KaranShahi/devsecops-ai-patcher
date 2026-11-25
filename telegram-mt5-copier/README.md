@@ -14,7 +14,10 @@ Listens to your Telegram signal channel(s), parses XAUUSD/GOLD signals, and plac
 - **Test on a demo account first.** Real accounts are refused unless `allow_live_account = true`.
 - Signals without a stop loss, with SL/TP on the wrong side, or for other instruments are ignored.
 - Risk-based lot sizing (`risk_percent` of balance), `max_lots_per_signal`, `max_open_trades`, spread filter, stale-message filter, duplicate protection.
-- Multiple TPs → one order per TP (position split evenly).
+- **Layered entries** (your rule #1): a zone like `SELL 3622–3631` becomes up to `max_layers` limit orders ~35 pips apart (`3622 / 3626.5 / 3631`). Your total risk is *divided* across the layers, so layering never adds risk. Layers price has already passed are skipped, never chased.
+- **TP1 management** (your rule #3): when price hits TP1 the bot closes `tp1_close_percent` of each position (or everything with `tp1_action = full`) and moves the rest to breakeven (+ a small buffer for spread/commission). The rest then runs to `hold_tp` (default TP2) or the SL.
+- **"Close your worst entry"**: a short message like that closes the worst-priced open layer (lowest sell / highest buy).
+- Long announcements and "for example…" messages are never treated as signals.
 
 ## Supported signal formats
 ```

@@ -24,3 +24,20 @@ def test_rejects():
     assert p("GOLD BUY 2650 SL 2660 TP 2670") is None    # SL on wrong side
     assert p("Gold is looking bullish today, will buy dips") is None
     assert p("GOLD SELL 2650 SL 2660 TP 2670") is None   # TP on wrong side
+
+
+def test_zone_signal_with_en_dash_and_5_tps():
+    s = p("SELL XAUUSD 3622–3631\n\n🎯 TP1: 3619\n🎯 TP2: 3607\n🎯 TP3: 3590\n🎯 TP4: 3550\n🎯 TP5: 3500\n🛑 SL: 3638")
+    assert (s.side, s.entry, s.entry_high, s.sl) == ("SELL", 3622, 3631, 3638)
+    assert s.tps == [3619, 3607, 3590, 3550, 3500]
+
+
+def test_long_announcement_is_not_a_signal():
+    msg = "IMPORTANT MESSAGE " + "blah " * 120 + "For example, if I send: SELL XAUUSD 3622–3631 TP1: 3619 SL: 3638"
+    assert p(msg) is None
+
+
+def test_close_worst_command():
+    from signal_parser import is_close_worst_command as c
+    assert c("Close your worst entry now") and not c("hello")
+    assert not c("x" * 300 + " close your worst entry")

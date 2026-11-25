@@ -3,3 +3,4 @@ config.ini
 *.session-journal
 seen_messages.json
 copier.log
+positions_state.json
